@@ -35,6 +35,7 @@ jobs:
         run: python scheduler/run_crawl.py --days 7
 
       - name: Commit updated database
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -42,6 +43,26 @@ jobs:
           if git commit -m "chore: daily crawl $(date -u +'%Y-%m-%dT%H:%M:%SZ')"; then
             git pull --rebase origin "${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           else
             echo "no changes to commit"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # ---- 把每日更新同步到托管平台（仅在配置了对应 Secret 时生效）----
+      - name: Sync to Hugging Face Space
+        if: ${{ env.HF_SPACE != '' && steps.commit.outputs.pushed == 'true' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ secrets.HF_SPACE }}
+        run: |
+          git remote add space "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}"
+          git push space "HEAD:main" --force
+        continue-on-error: true
+
+      - name: Trigger Render redeploy
+        if: ${{ env.RENDER_DEPLOY_HOOK != '' && steps.commit.outputs.pushed == 'true' }}
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -X POST "$RENDER_DEPLOY_HOOK"
+        continue-on-error: true

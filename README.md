@@ -158,4 +158,9 @@ launchctl list | grep com.sportsnews.hub
 - 🗄️ SQLite 存储历史新闻（FTS5 全文索引，避免重复抓取）
 - 🛠️ **爬虫状态面板**：抓取耗时、成功/失败次数、每次来源明细
 
-> 部署：代码已推送至 `github.com/pm5mprzr75-a11y/sports-news-hub`，在 share.streamlit.io 用 GitHub 登录部署即得公网网址（手机可开）。重部署后首次加载会自动 `init_db()` 迁移并跑每日抓取。
+> ⚠️ **部署平台说明（重要）**：原 `*.streamlit.app`（Streamlit 社区云）链接对该项目使用的 **企业托管 GitHub 账号（EMU）不可用**——社区云查看应用需走 GitHub OAuth，而 EMU 账号对该第三方 OAuth 授权受限，会卡在登录跳转死循环、永远打不开。社区云平台本身在 2026 年仍运营，但此账号无法用它对外提供公开访问。
+>
+> ✅ **正确做法：改用 Hugging Face Spaces 或 Render（两者都是公开 URL、手机免登录、关电脑也在）**：
+> - **Hugging Face Spaces（推荐，免费）**：登录 huggingface.co（可用邮箱/Google，不依赖 GitHub OAuth）→ New Space → SDK 选 Streamlit → 创建后把本仓库代码推上去（或设置「Sync from GitHub」关联 `pm5mprzr75-a11y/sports-news-hub`）。给助手一个 HF Token 即可一键建好。
+> - **Render（免费）**：用本仓库根目录的 `render.yaml` / `Procfile`，Start Command 为 `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`。给助手一个 Render API Key 即可用 API 直接建服务（绕开 GitHub OAuth）。
+> - 每日抓取（GitHub Actions）会在提交数据库后，自动同步到 HF Space（需 `HF_TOKEN`+`HF_SPACE` Secret）或触发 Render 重新部署（需 `RENDER_DEPLOY_HOOK` Secret），保证「每日自动更新」在新平台上同样生效。

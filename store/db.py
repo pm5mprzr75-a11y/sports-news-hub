@@ -93,6 +93,22 @@ def init_db() -> None:
         cur.execute("ALTER TABLE articles ADD COLUMN sentiment_score REAL DEFAULT 0.5;")
     if "kw_tags" not in cols:
         cur.execute("ALTER TABLE articles ADD COLUMN kw_tags TEXT;")
+    # 兼容旧库：crawl_runs 可能缺少部分列（幂等迁移，避免 log_crawl_run 写入时崩）
+    cur.execute("PRAGMA table_info(crawl_runs)")
+    cr_cols = {r[1] for r in cur.fetchall()}
+    expected_cr = {
+        "started_at": "TEXT",
+        "finished_at": "TEXT",
+        "source_id": "TEXT",
+        "fetched": "INTEGER DEFAULT 0",
+        "status": "TEXT",
+        "total": "INTEGER DEFAULT 0",
+        "duration_ms": "INTEGER DEFAULT 0",
+        "error": "TEXT",
+    }
+    for col, typ in expected_cr.items():
+        if col not in cr_cols:
+            cur.execute(f"ALTER TABLE crawl_runs ADD COLUMN {col} {typ};")
     # FTS5 全文索引（外部内容表，关联 articles.id）
     cur.execute(
         """
