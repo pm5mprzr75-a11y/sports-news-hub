@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# 日志（不入库，避免噪音）
+data/crawl.log
+data/web.log
+data/launchd.out.log
+data/launchd.err.log
+
+# 导出产物（临时文件，不入库）
+exports/
+
+# 杂项
+*.db-journal
+.DS_Store
+
+# 注意：data/sports_news.db 必须入库（GitHub Actions 每日抓取后提交，
+# Streamlit Cloud 据此读取最新数据，实现关电脑也在、每日自动更新）。

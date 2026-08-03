@@ -1,0 +1,235 @@
+# 主流体育媒体站点注册表
+# tier: 1=核心可靠源(默认开启)  2=社交/垂类补充(best-effort)  3=需密钥/登录(后续)
+# type: rss | json_api | html | selenium
+# enabled: true/false
+# anti_ban: low | medium | high  (决定请求延时与并发)
+# comment_adapter: netease | hupu | null  (评论抓取适配器)
+# lang: zh | en
+
+sources:
+  # ---------- Tier 1 核心可靠源 ----------
+  - id: sina_sports
+    name: 新浪体育
+    tier: 1
+    type: json_api
+    parser: sina
+    enabled: true
+    anti_ban: low
+    lang: zh
+    url: "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=50&page={page}"
+    max_pages: 3
+    comment_adapter: null
+
+  - id: netease_sports
+    name: 网易体育
+    tier: 1
+    type: json_api
+    parser: netease
+    enabled: true
+    anti_ban: low
+    lang: zh
+    url: "https://3g.163.com/touch/reconstruct/article/list/BA8E6OEOwangning/{offset}-10.html"
+    max_pages: 3
+    comment_adapter: netease
+
+  - id: sohu_sports
+    name: 搜狐体育
+    tier: 1
+    type: html
+    enabled: true
+    anti_ban: medium
+    lang: zh
+    list_url: "https://www.sohu.com/a/"
+    article_url_pattern: "sohu\\.com/a/\\d+"
+    max_articles: 40
+    comment_adapter: null
+    note: "搜狐体育专属接口已失效，v1 退而抓取搜狐全站文章流，再由关键词引擎筛出体育相关内容（best-effort）。"
+
+  - id: tencent_sports
+    name: 腾讯体育
+    tier: 1
+    type: html
+    enabled: false
+    anti_ban: medium
+    lang: zh
+    list_url: "https://sports.qq.com/"
+    article_url_pattern: "sports\\.qq\\.com/.*\\.htm"
+    max_articles: 40
+    comment_adapter: null
+    note: "腾讯体育页面为纯 SPA，无稳定公开新闻接口（仅赛事数据 JSON 可用），v1 暂关闭，留待后续用移动端/接口方案接入。"
+
+  - id: cctv_sports
+    name: 央视体育
+    tier: 1
+    type: rss
+    enabled: true
+    anti_ban: low
+    lang: zh
+    url: "http://www.cctv.com/program/rss/02/03/index.xml"
+    comment_adapter: null
+    note: "央视体育公开 RSS 已停更（内容停留在 2007 年），7天窗口内通常无新条目；待后续改抓官网栏目页。"
+
+  - id: xinhua_sports
+    name: 新华网体育
+    tier: 1
+    type: html
+    enabled: true
+    anti_ban: medium
+    lang: zh
+    list_url: "https://sports.xinhuanet.com/"
+    article_url_pattern: "sports\\.xinhuanet\\.com/.*\\.htm"
+    max_articles: 40
+    comment_adapter: null
+
+  - id: people_sports
+    name: 人民网体育
+    tier: 1
+    type: rss
+    enabled: true
+    anti_ban: low
+    lang: zh
+    url: "http://www.people.com.cn/rss/sports.xml"
+    comment_adapter: null
+    note: "人民网体育 RSS 最近一条停留在 2025 年，7天窗口内通常无新条目；待后续改抓官网栏目页。"
+
+  - id: hupu
+    name: 虎扑
+    tier: 1
+    type: html
+    enabled: true
+    anti_ban: medium
+    lang: zh
+    list_url: "https://www.hupu.com/"
+    article_url_pattern: "hupu\\.com/.*\\d+\\.html"
+    max_articles: 40
+    comment_adapter: hupu
+
+  - id: zhibo8
+    name: 直播吧
+    tier: 1
+    type: html
+    enabled: true
+    anti_ban: medium
+    lang: zh
+    list_url: "https://news.zhibo8.com/nba/"
+    article_url_pattern: "zhibo8\\.com/.*\\.(html|htm)"
+    max_articles: 40
+    comment_adapter: null
+    note: "直播吧文章在 news.zhibo8.com 子栏目；v1 抓 NBA 栏目，可扩展至足球/电竞等。"
+
+  - id: espn
+    name: ESPN
+    tier: 1
+    type: rss
+    enabled: true
+    anti_ban: low
+    lang: en
+    url: "https://www.espn.com/espn/rss/news"
+    comment_adapter: null
+
+  - id: bbc_sport
+    name: BBC Sport
+    tier: 1
+    type: rss
+    enabled: true
+    anti_ban: low
+    lang: en
+    url: "https://feeds.bbci.co.uk/sport/rss.xml"
+    comment_adapter: null
+
+  - id: guardian_sport
+    name: The Guardian Sport
+    tier: 1
+    type: rss
+    enabled: true
+    anti_ban: low
+    lang: en
+    url: "https://www.theguardian.com/sport/rss"
+    comment_adapter: null
+
+  - id: reuters_sports
+    name: 路透社体育(实验)
+    tier: 1
+    type: html
+    enabled: false
+    anti_ban: high
+    lang: en
+    list_url: "https://www.reuters.com/sports/"
+    article_url_pattern: "reuters\\.com/sports/.*"
+    max_articles: 30
+    comment_adapter: null
+    note: "路透 RSS 已停用，此处为 best-effort HTML 抓取，可能受限，默认关闭。"
+
+  # ---------- Tier 2 社交/UGC 补充 (best-effort) ----------
+  - id: weibo_sports
+    name: 微博体育(社交层)
+    tier: 2
+    type: weibo
+    enabled: true
+    anti_ban: high
+    lang: zh
+    max_per_sport: 8
+    comment_adapter: weibo
+    note: "按 config/sports.yaml 各运动项目搜索 UGC 微博 + 热评。需新浪访客 cookie 握手，个别网络/IP 可能被风控。"
+
+  - id: tieba_sports
+    name: 百度贴吧(社交层)
+    tier: 2
+    type: tieba
+    enabled: true
+    anti_ban: medium
+    lang: zh
+    max_per_sport: 8
+    comment_adapter: tieba
+    note: "按运动项目抓各『吧』帖子 + 楼层回复。PC 列表页反爬，best-effort。"
+
+  - id: xiaohongshu
+    name: 小红书(社交层)
+    tier: 3
+    type: html
+    enabled: false
+    anti_ban: high
+    lang: zh
+    url: "https://www.xiaohongshu.com/search_result?keyword=%E4%BD%93%E8%82%B2"
+    article_url_pattern: "xiaohongshu\\.com/explore/"
+    max_articles: 30
+    comment_adapter: null
+    note: "需 x-s/x-t 签名或登录态，无公开接口，v1 暂不可用。"
+
+  - id: shipinhao
+    name: 视频号(社交层)
+    tier: 3
+    type: html
+    enabled: false
+    anti_ban: high
+    lang: zh
+    url: ""
+    article_url_pattern: ""
+    max_articles: 30
+    comment_adapter: null
+    note: "无公开 Web 接口，需微信登录态，v1 暂不可用。"
+
+  - id: douyin
+    name: 抖音(社交层)
+    tier: 3
+    type: html
+    enabled: false
+    anti_ban: high
+    lang: zh
+    url: ""
+    article_url_pattern: ""
+    max_articles: 30
+    comment_adapter: null
+    note: "需签名(a_bogus)或登录态，无公开接口，v1 暂不可用。"
+
+  - id: sogou_wx
+    name: 公众号(搜狗微信)
+    tier: 3
+    type: selenium
+    enabled: false
+    anti_ban: high
+    lang: zh
+    keyword: "体育产业"
+    max_articles: 50
+    comment_adapter: null
+    note: "搜狗微信 Selenium 抓取，需验证码识别，易失效，实验性。"

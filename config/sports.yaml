@@ -1,0 +1,96 @@
+# 运动项目分类体系
+# 用于：① 社交平台按运动检索 UGC 内容（微博搜索词 / 贴吧吧名）
+#       ② 所有文章按"运动项目"维度自动打标与筛选
+# 每个运动下挂 entities（联赛 / 球队 / 明星 / 赛事），用于二级精准检索
+# keyword 命中即归入该运动（可多标签）；tieba 为该运动对应的百度贴吧吧名
+sports:
+  - id: basketball
+    name: 篮球
+    keywords: [篮球, NBA, CBA, 打球, 球鞋, 三分球, 灌篮, 篮协, 乔丹, 库里, 湖人, 勇士]
+    tieba: 篮球
+    entities: [NBA, CBA, 美职篮, 金州勇士, 湖人, 凯尔特人, 勒布朗·詹姆斯, 斯蒂芬·库里, 姚明, 篮球世界杯]
+  - id: football
+    name: 足球
+    keywords: [足球, 中超, 英超, 西甲, 德甲, 意甲, 世界杯, 欧冠, 踢球, 国足, 足协, FIFA, 梅西, C罗]
+    tieba: 足球
+    entities: [中超, 英超, 西甲, 德甲, 意甲, 世界杯, 欧冠, 国足, 皇家马德里, 巴塞罗那, 曼联, 利物浦, 阿根廷队, 巴西队]
+  - id: running
+    name: 跑步
+    keywords: [跑步, 晨跑, 夜跑, 慢跑, 配速, 跑者, jogging, 马拉松训练]
+    tieba: 跑步
+    entities: [上海马拉松, 北京马拉松, 波士顿马拉松, 跑步机, 跑团]
+  - id: marathon
+    name: 马拉松
+    keywords: [马拉松, 全马, 半马, 越野跑, "42.195"]
+    tieba: 马拉松
+    entities: [上海马拉松, 北京马拉松, 波士顿马拉松, 柏林马拉松, 伦敦马拉松, 六大满贯, 越野跑]
+  - id: fitness
+    name: 健身
+    keywords: [健身, 撸铁, 增肌, 减脂, 训练, 健身房, 力量, 塑形, gym, 普拉提]
+    tieba: 健身
+    entities: [力量训练, 增肌减脂, 普拉提, 举铁]
+  - id: swimming
+    name: 游泳
+    keywords: [游泳, 自由泳, 蛙泳, 蝶泳, 仰泳, 泳池, swimmer]
+    tieba: 游泳
+    entities: [游泳世界杯, 全国游泳冠军赛, 孙杨, 张雨霏, 汪顺]
+  - id: badminton
+    name: 羽毛球
+    keywords: [羽毛球, 羽球, badminton, 双打, 林丹]
+    tieba: 羽毛球
+    entities: [林丹, 谌龙, 李宗伟, 全英赛, 苏迪曼杯, 汤姆斯杯]
+  - id: table_tennis
+    name: 乒乓球
+    keywords: [乒乓球, 国乒, 乒坛, 世乒赛, 马龙, 樊振东]
+    tieba: 乒乓球
+    entities: [马龙, 樊振东, 孙颖莎, 王楚钦, 世乒赛, 乒乓球世界杯]
+  - id: tennis
+    name: 网球
+    keywords: [网球, tennis, 大满贯, 温网, 法网, 美网, 澳网]
+    tieba: 网球
+    entities: [德约科维奇, 纳达尔, 费德勒, 阿尔卡拉斯, 中国网球公开赛, 上海大师赛]
+  - id: volleyball
+    name: 排球
+    keywords: [排球, 女排, 拦网, 主攻]
+    tieba: 排球
+    entities: [中国女排, 朱婷, 郎平, 世界女排联赛]
+  - id: cycling
+    name: 骑行
+    keywords: [骑行, 自行车, 公路车, 单车, cycling, 山地车, 骑行圈]
+    tieba: 骑行
+    entities: [环法, 环青海湖, 公路车, 骑行圈]
+  - id: skiing
+    name: 滑雪
+    keywords: [滑雪, 单板, 双板, snowboard, 滑雪场, 冬奥]
+    tieba: 滑雪
+    entities: [谷爱凌, 苏翊鸣, 崇礼, 冬奥会, 单板滑雪]
+  - id: yoga
+    name: 瑜伽
+    keywords: [瑜伽, yoga, 冥想, 拉伸]
+    tieba: 瑜伽
+    entities: [流瑜伽, 阴瑜伽, 冥想]
+  - id: esports
+    name: 电竞
+    keywords: [电竞, 英雄联盟, LOL, 王者荣耀, CSGO, DOTA2, 电竞赛事, 战队, 和平精英, KPL]
+    tieba: 电竞
+    entities: [英雄联盟, 王者荣耀, 和平精英, KPL, LPL, 无畏契约, EDG, 电竞俱乐部]
+  - id: hiking
+    name: 登山徒步
+    keywords: [登山, 徒步, 爬山, hiking, 户外, 露营]
+    tieba: 登山
+    entities: [户外装备, 露营, 徒步路线, 爬山]
+  - id: fishing
+    name: 钓鱼
+    keywords: [钓鱼, 垂钓, 路亚, 鱼竿, 野钓]
+    tieba: 钓鱼
+    entities: [路亚, 野钓, 钓具, 黑坑]
+  - id: martial_arts
+    name: 格斗
+    keywords: [拳击, 格斗, 散打, MMA, 综合格斗, 搏击, UFC, 泰拳]
+    tieba: 格斗
+    entities: [UFC, 张伟丽, 综合格斗, 拳击]
+  - id: billiards
+    name: 台球
+    keywords: [台球, 斯诺克, 桌球, billiards, 丁俊晖]
+    tieba: 台球
+    entities: [丁俊晖, 斯诺克世锦赛, 中式台球]
