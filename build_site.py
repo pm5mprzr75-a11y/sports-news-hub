@@ -23,6 +23,47 @@ RECENT_DAYS = 30          # 统计时间窗（热度/情感/词云）
 MAX_ARTICLES = 2000       # 导出文章上限（控制 data.json 体积）
 
 
+CONTENT_MAX = 2000       # 单篇正文截断长度（控制体积，足够阅读）
+COMMENTS_MAX = 30         # 单篇评论导出上限
+
+
+def _comments(aid: int) -> list:
+    """导出某篇文章的评论（按赞数排序，截断到上限）。"""
+    try:
+        rows = db.get_comments(aid)
+    except Exception:
+        return []
+    out = []
+    for c in rows[:COMMENTS_MAX]:
+        out.append({
+            "author": c.author or "匿名",
+            "content": c.content or "",
+            "likes": c.likes or 0,
+            "published_at": c.published_at.isoformat(timespec="seconds") if c.published_at else "",
+        })
+    return out
+
+
+def _fix_mojibake(s: str) -> str:
+    """修复双重编码乱码（UTF-8 被按 latin1 误读后再存）。仅对「本身无中文、
+    修复后才出现中文」的字符串生效，正常中文串不会被改动。少量非法字节用替换符容忍。"""
+    if not s:
+        return s
+    if any("\u4e00" <= c <= "\u9fff" for c in s):
+        return s  # 已有中文，无需修复
+    try:
+        b = s.encode("latin1")
+    except UnicodeEncodeError:
+        return s
+    try:
+        repaired = b.decode("utf-8")
+    except UnicodeDecodeError:
+        repaired = b.decode("utf-8", errors="replace")
+    if any("\u4e00" <= c <= "\u9fff" for c in repaired):
+        return repaired
+    return s
+
+
 def _to_record(a) -> dict:
     return {
         "id": a.id,
@@ -31,7 +72,8 @@ def _to_record(a) -> dict:
         "source_name": a.source_name or "",
         "source_id": a.source_id or "",
         "published_at": a.published_at.isoformat(timespec="seconds") if a.published_at else "",
-        "summary": a.summary or "",
+        "summary": _fix_mojibake(a.summary or ""),
+        "content": _fix_mojibake((a.content or "")[:CONTENT_MAX]),
         "sport_tags": a.sport_tags or [],
         "category_tags": a.category_tags or [],
         "entity_tags": a.entity_tags or [],
@@ -40,6 +82,7 @@ def _to_record(a) -> dict:
         "sentiment_score": a.sentiment_score if a.sentiment_score is not None else 0.5,
         "image_url": a.image_url or "",
         "comment_count": a.comment_count or 0,
+        "comments": _comments(a.id),
     }
 
 
@@ -61,6 +104,13 @@ def build() -> dict:
     last_crawl = db.get_last_crawl()
     overview = db.get_overview()
 
+    # 产业分类分布（体育产业关键词分类）
+    cat_counter = {}
+    for a in articles:
+        for c in (a.get("category_tags") or []):
+            cat_counter[c] = cat_counter.get(c, 0) + 1
+    categories = dict(sorted(cat_counter.items(), key=lambda kv: kv[1], reverse=True))
+
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "articles": articles,
@@ -76,6 +126,7 @@ def build() -> dict:
             "crawl_stats": crawl_stats,
             "last_crawl": last_crawl,
             "sports_overview": overview.get("sports", {}),
+            "categories": categories,
         },
     }
 
