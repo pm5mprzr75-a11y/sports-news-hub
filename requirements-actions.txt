@@ -1,0 +1,8 @@
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.1
+feedparser==6.0.14
+PyYAML==6.0.3
+jieba==0.42.1
+snownlp==0.12.3
+pillow==11.3.0

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🏟️ 萌力体育新闻站 · Sports News Hub</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>正在加载最新体育资讯… ⚽🏀🎮</div>
+  </div>
+
+  <div class="wrap" id="app" style="display:none;">
+    <header class="hero">
+      <h1>🏟️ 萌力体育新闻站</h1>
+      <p>聚合多源体育资讯 · 智能摘要 · 情感分析 · 关键词词云 · 收藏订阅一键搞定</p>
+      <div class="meta" id="hero-meta"></div>
+    </header>
+
+    <div class="stat-row" id="stat-row"></div>
+
+    <div class="section">
+      <h2><span class="emoji">📊</span> 数据可视化</h2>
+      <div class="viz-grid">
+        <div>
+          <div class="note" style="margin-bottom:6px;">来源占比（近30天发文）</div>
+          <div id="viz-source"></div>
+        </div>
+        <div>
+          <div class="note" style="margin-bottom:6px;">情感分布（正面/负面/中性）</div>
+          <div id="viz-sentiment"></div>
+        </div>
+        <div>
+          <div class="note" style="margin-bottom:6px;">各运动近30天发布量</div>
+          <div id="viz-stacked"></div>
+        </div>
+        <div>
+          <div class="note" style="margin-bottom:6px;">近7天热度折线</div>
+          <div id="viz-line"></div>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <div class="note" style="margin-bottom:6px;">🔥 关键词词云（点词可筛选）</div>
+          <div id="viz-cloud"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="emoji">🔎</span> 筛选与控制</h2>
+      <div class="controls">
+        <input type="text" id="search" placeholder="🔍 搜索标题 / 摘要 / 球队 / 球员…" />
+        <select class="select" id="sort">
+          <option value="new">最新优先</option>
+          <option value="comments">评论最多</option>
+          <option value="score">情感强度</option>
+        </select>
+        <select class="select" id="range">
+          <option value="7">近 7 天</option>
+          <option value="30" selected>近 30 天</option>
+          <option value="0">全部</option>
+        </select>
+        <button class="btn" id="btn-export">📝 导出 Markdown</button>
+      </div>
+      <div class="filter-group" id="filter-sport"></div>
+      <div class="filter-group" id="filter-source"></div>
+      <div class="filter-group" id="filter-sentiment">
+        <span class="toggle active" data-sent="all">全部情感</span>
+        <span class="toggle" data-sent="pos">😊 正面</span>
+        <span class="toggle" data-sent="neg">😟 负面</span>
+        <span class="toggle" data-sent="neu">😐 中性</span>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <span class="tab active" data-tab="all">📰 全部资讯</span>
+      <span class="tab" data-tab="bookmarks">⭐ 我的收藏 <span id="bm-count" class="kbd">0</span></span>
+      <span class="tab" data-tab="history">🕘 浏览历史</span>
+      <span class="tab" data-tab="subs">💌 我的订阅</span>
+      <span class="tab" data-tab="monitor">📡 关键词监控</span>
+    </div>
+
+    <div id="tab-subs" class="section" style="display:none;">
+      <h2><span class="emoji">💌</span> 我的订阅</h2>
+      <p class="note">勾选感兴趣的运动与球队，打开本页会自动优先展示相关内容（存于本机浏览器）。</p>
+      <div class="filter-group" id="sub-sport"></div>
+      <div class="controls" style="margin-top:12px;">
+        <input type="text" id="sub-entity" placeholder="添加想订阅的球队 / 球员名，回车确认" />
+      </div>
+      <div class="filter-group" id="sub-entity-list"></div>
+    </div>
+
+    <div id="tab-monitor" class="section" style="display:none;">
+      <h2><span class="emoji">📡</span> 关键词监控</h2>
+      <p class="note">输入关注的球队 / 球员，有新相关新闻会自动高亮提醒（红框）。</p>
+      <div class="controls">
+        <input type="text" id="mon-input" placeholder="输入监控词，回车添加（如：梅西、湖人）" />
+      </div>
+      <div class="filter-group" id="mon-list" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+    <div class="empty-tip" id="empty-tip" style="display:none;">没有匹配的新闻，换个筛选条件试试～ 🐱</div>
+
+    <div class="section">
+      <h2><span class="emoji">🤖</span> 爬虫状态面板</h2>
+      <div class="crawl-grid" id="crawl-stats"></div>
+      <div id="crawl-runs"></div>
+    </div>
+
+    <footer style="text-align:center;color:var(--ink-soft);font-size:12px;padding:24px 0 0;">
+      数据由 GitHub Actions 每日自动抓取更新 · 本页部署于 GitHub Pages · 收藏/订阅存于本地浏览器
+    </footer>
+  </div>
+
+  <div class="modal-mask" id="modal-mask">
+    <div class="modal">
+      <h3 id="modal-title">导出</h3>
+      <textarea id="modal-text" readonly></textarea>
+      <div class="row">
+        <button class="btn ghost" id="modal-close">关闭</button>
+        <button class="btn" id="modal-copy">📋 复制</button>
+        <button class="btn pink" id="modal-download">⬇️ 下载 .md</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

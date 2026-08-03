@@ -1,12 +1,12 @@
-name: Daily Sports Crawl
+name: Daily Sports Crawl + Build Site
 
+# 每日北京时间 03:00 抓取最新体育资讯，并重新生成静态站点数据（docs/data.json）
+# 推回 main 后，GitHub Pages（Deploy from a branch: main /docs）会自动重新部署。
+# 注意：刻意不监听 push，避免「commit → push → 再触发」死循环。
 on:
   schedule:
-    # 每天北京时间 03:00 抓取（UTC+8 → 19:00 UTC 前一天）
-    - cron: "0 19 * * *"
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+    - cron: "0 19 * * *"   # UTC 19:00 = 北京时间 03:00
+  workflow_dispatch:       # 允许在 Actions 页面手动触发
 
 permissions:
   contents: write
@@ -26,43 +26,26 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies (精简，仅抓取 + 构建所需)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-actions.txt
 
       - name: Run crawl (last 7 days)
         run: python scheduler/run_crawl.py --days 7
 
-      - name: Commit updated database
-        id: commit
+      - name: Build static site data
+        run: python build_site.py
+
+      - name: Commit database + site data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/sports_news.db
-          if git commit -m "chore: daily crawl $(date -u +'%Y-%m-%dT%H:%M:%SZ')"; then
-            git pull --rebase origin "${GITHUB_REF_NAME}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-            echo "pushed=true" >> "$GITHUB_OUTPUT"
-          else
+          git add data/sports_news.db docs/data.json
+          if git diff --cached --quiet; then
             echo "no changes to commit"
-            echo "pushed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: daily crawl + site data $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
-
-      # ---- 把每日更新同步到托管平台（仅在配置了对应 Secret 时生效）----
-      - name: Sync to Hugging Face Space
-        if: ${{ env.HF_SPACE != '' && steps.commit.outputs.pushed == 'true' }}
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ secrets.HF_SPACE }}
-        run: |
-          git remote add space "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}"
-          git push space "HEAD:main" --force
-        continue-on-error: true
-
-      - name: Trigger Render redeploy
-        if: ${{ env.RENDER_DEPLOY_HOOK != '' && steps.commit.outputs.pushed == 'true' }}
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: curl -X POST "$RENDER_DEPLOY_HOOK"
-        continue-on-error: true
