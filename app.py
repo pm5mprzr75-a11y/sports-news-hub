@@ -179,28 +179,43 @@ def main():
     # ---- 导出 ----
     st.divider()
     st.subheader("📤 导出当前筛选结果")
-    st.caption("Excel/PDF 已包含「评论明细」；也可单独导出评论 Excel/CSV。")
+    st.caption("点击按钮生成后，下方会出现「下载」按钮，报告直接下载到你的设备（浏览器默认下载目录）。"
+               "本地运行时，文件同时保存在项目 exports/ 目录。")
+
+    if "dl" not in st.session_state:
+        st.session_state["dl"] = {}
+
+    def _store_dl(key, filename, mime, data: bytes):
+        st.session_state["dl"][key] = (data, filename, mime)
+
     c1, c2, c3 = st.columns(3)
     if c1.button("导出 Excel（含评论）", use_container_width=True):
         p = ex.export_excel(articles, "sports_news.xlsx")
-        st.success(f"已生成：{p}")
+        _store_dl("xlsx", "sports_news.xlsx",
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  open(p, "rb").read())
     if c2.button("导出 CSV", use_container_width=True):
         p = ex.export_csv(articles, "sports_news.csv")
-        st.success(f"已生成：{p}")
+        _store_dl("csv", "sports_news.csv", "text/csv", open(p, "rb").read())
     if c3.button("导出 PDF（含评论）", use_container_width=True):
         p = pdf_mod.export_pdf(articles, "sports_news.pdf")
-        st.success(f"已生成：{p}")
+        _store_dl("pdf", "sports_news.pdf", "application/pdf", open(p, "rb").read())
 
     st.subheader("💬 单独导出评论")
     cc1, cc2 = st.columns(2)
     if cc1.button("导出评论 Excel", use_container_width=True):
         p = ex.export_comments_excel(articles, "sports_comments.xlsx")
-        st.success(f"已生成：{p}")
+        _store_dl("cxlsx", "sports_comments.xlsx",
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  open(p, "rb").read())
     if cc2.button("导出评论 CSV", use_container_width=True):
         p = ex.export_comments_csv(articles, "sports_comments.csv")
-        st.success(f"已生成：{p}")
+        _store_dl("ccsv", "sports_comments.csv", "text/csv", open(p, "rb").read())
 
-    st.caption("导出文件位于项目 exports/ 目录；也可在终端用 `python scheduler/run_crawl.py` 定时抓取。")
+    # 渲染下载按钮（放在触发按钮之外，跨 rerun 持久，避免点击后消失）
+    for key, (data, fname, mime) in st.session_state["dl"].items():
+        st.download_button(f"⬇️ 下载 {fname}", data, file_name=fname, mime=mime,
+                           key=f"dlbtn_{key}", use_container_width=True)
 
 
 if __name__ == "__main__":
