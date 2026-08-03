@@ -23,7 +23,7 @@ from nlp import translate as tr  # noqa: E402
 from nlp.keyword_matcher import KeywordMatcher  # noqa: E402
 from store import db  # noqa: E402
 
-st.set_page_config(page_title="🏀 体育资讯小宇宙", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="🏟️ 体育情报站", page_icon="🏟️", layout="wide")
 DB = db
 
 # ---------------------------------------------------------------------------
@@ -32,28 +32,33 @@ DB = db
 THEME_CSS = """
 <style>
 :root{
-  --candy-blue:#4FC3F7; --candy-pink:#F06292; --candy-yellow:#FFD54F;
-  --candy-green:#81C784; --soft:#FFFDF7;
+  --pitch:#0b2545; --pitch2:#13315c; --accent:#00b4d8; --red:#ef233c;
+  --green:#2a9d8f; --gold:#ffd166; --ink:#0b2545;
 }
-.stApp{background:linear-gradient(180deg,#EAF6FF 0%,#FFF7FB 100%);}
+.stApp{background:linear-gradient(180deg,#0b2545 0%,#13315c 100%);}
 h1,h2,h3{font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
 header[data-testid="stHeader"]{background:transparent;}
-.block-container{padding-top:1.2rem;}
-.stMarkdown h1{color:#2E7DB5;}
-div[data-testid="stSidebar"]{background:linear-gradient(180deg,#FFFDF7,#FFF0F6);}
-.kicker{font-size:13px;color:#888;}
-.tag{display:inline-block;background:#FFE0B2;color:#7A4B00;padding:1px 8px;border-radius:12px;
-  font-size:11px;margin:2px 3px 2px 0;}
-.art-card{border:2px solid #FFE0EC;border-radius:18px;background:#fff;padding:14px 16px;
-  margin:10px 0;box-shadow:0 4px 14px rgba(240,98,146,.10);}
-.art-title{font-size:17px;font-weight:700;color:#34495E;line-height:1.35;}
-.art-meta{font-size:12px;color:#90A4AE;margin:4px 0 6px;}
-.summary-box{background:#FFFDF2;border-left:4px solid var(--candy-yellow);padding:8px 10px;
-  border-radius:8px;font-size:13px;color:#555;margin:6px 0;}
-.sent-pos{background:#C8E6C9;color:#1B5E20;} .sent-neg{background:#FFCDD2;color:#B71C1C;}
-.sent-neu{background:#E0E0E0;color:#424242;}
-.banner{background:linear-gradient(90deg,#FFF3E0,#FFE0EC);border:2px dashed #FFB74D;
-  border-radius:14px;padding:10px 14px;margin:10px 0;}
+.block-container{padding-top:1rem;}
+.stMarkdown h1{color:#eaf2ff;}
+div[data-testid="stSidebar"]{background:linear-gradient(180deg,#0b2545,#102a4c);}
+.stMarkdown{color:#dbe7f3;}
+.kicker{font-size:13px;color:#9fb3c8;}
+.tag{display:inline-block;background:#1d3a5f;color:#cfe6ff;padding:1px 8px;border-radius:12px;
+  font-size:11px;margin:2px 3px 2px 0;border:1px solid #2a4d75;}
+.art-card{border:1px solid #2a4d75;border-left:5px solid var(--accent);border-radius:14px;
+  background:#ffffff;padding:14px 16px;margin:10px 0;box-shadow:0 4px 16px rgba(0,0,0,.32);}
+.art-title{font-size:17px;font-weight:700;color:#0b2545;line-height:1.35;}
+.art-meta{font-size:12px;color:#5b6b7c;margin:4px 0 6px;}
+.summary-box{background:#eef4fb;border-left:4px solid var(--accent);padding:8px 10px;
+  border-radius:8px;font-size:13px;color:#2a3a4a;margin:6px 0;}
+.content-box{background:#f7f9fc;border:1px solid #dfe6ee;border-radius:8px;padding:10px 12px;
+  font-size:13px;color:#2a3a4a;line-height:1.7;margin:6px 0;max-height:340px;overflow:auto;}
+.sent-pos{background:#1b7a4b;color:#fff;} .sent-neg{background:#c1121f;color:#fff;}
+.sent-neu{background:#5b6b7c;color:#fff;}
+.banner{background:linear-gradient(90deg,#102a4c,#13315c);border:2px solid #00b4d8;
+  border-radius:14px;padding:10px 14px;margin:10px 0;color:#cfe6ff;}
+.ccard{background:#0f2a4c;border:1px solid #2a4d75;border-radius:10px;padding:8px 10px;
+  font-size:13px;color:#dbe7f3;margin:4px 0;}
 </style>
 """
 st.markdown(THEME_CSS, unsafe_allow_html=True)
@@ -100,7 +105,7 @@ def main():
         sources = st.multiselect("来源", options=list(src_options.keys()),
                                  format_func=lambda x: src_options[x], default=list(src_options.keys()))
         categories = matcher.categories()
-        sel_cats = st.multiselect("关键词分类", options=categories, default=[])
+        sel_cats = st.multiselect("🏷️ 体育产业分类", options=categories, default=[])
         sports = matcher.sports()
         sel_sports = st.multiselect("🏀 运动项目", options=sports, default=[],
                                     help="按运动项目筛选；社交平台内容按此维度检索")
@@ -167,8 +172,8 @@ def main():
     eff_entities = [ent_lookup.get(d) for d in sub_entities_disp] if (apply_sub and ls.get_subs().get("entities")) else sel_entities
 
     # ---------------- 顶部标题 ----------------
-    st.markdown("# 🏀 体育资讯小宇宙")
-    st.markdown('<p class="kicker">抓取主流体育媒体 & 社交平台近 7 天内容 · 智能摘要 · 情感分析 · 数据可视化 · 每日云端自动更新</p>',
+    st.markdown("# 🏟️ 体育情报站")
+    st.markdown('<p class="kicker">实时聚合主流体育媒体 & 社交平台 · 智能摘要 · 情感分析 · 数据可视化 · 可编辑订阅/监控/关键词 · 一键重新抓取入库</p>',
                 unsafe_allow_html=True)
 
     # ---------------- 关键词监控提醒 ----------------
@@ -305,6 +310,9 @@ def main():
                 st.markdown(tags, unsafe_allow_html=True)
                 if a.summary:
                     st.markdown(f'<div class="summary-box">📝 {a.summary}</div>', unsafe_allow_html=True)
+                if a.content and len(a.content) > len(a.summary or ""):
+                    with st.expander("📖 查看全文"):
+                        st.markdown(f'<div class="content-box">{a.content}</div>', unsafe_allow_html=True)
                 if a.kw_tags:
                     st.markdown("🔑 " + " ".join(chip(k, "#7E57C2") for k in a.kw_tags[:8]),
                                 unsafe_allow_html=True)
