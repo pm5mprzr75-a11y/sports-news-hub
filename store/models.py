@@ -18,6 +18,10 @@ class Article:
     matched_keywords: list = field(default_factory=list)
     sport_tags: list = field(default_factory=list)
     entity_tags: list = field(default_factory=list)
+    image_url: str = ""
+    sentiment: str = "neu"          # pos / neg / neu
+    sentiment_score: float = 0.5
+    kw_tags: list = field(default_factory=list)   # 智能提取的关键词
     lang: str = "zh"
     comment_adapter: Optional[str] = None
     # 运行时填充

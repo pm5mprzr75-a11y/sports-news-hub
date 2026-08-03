@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 
 import yaml
+import time
 
 from crawlers.comments import fetch_comments
 from crawlers.html_adapter import HtmlAdapter
@@ -12,6 +13,7 @@ from crawlers.rss_adapter import RssAdapter
 from crawlers.tieba_adapter import TiebaAdapter
 from crawlers.weibo_adapter import WeiboAdapter
 from nlp.keyword_matcher import KeywordMatcher
+from nlp import textproc as tp
 from store import db
 
 CONFIG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config")
@@ -63,10 +65,13 @@ def run_crawl(days: int = 7, source_ids: list = None, with_comments: bool = True
         if adapter is None:
             report[cfg["id"]] = {"fetched": 0, "status": "skipped(no adapter)"}
             continue
+        t0 = time.time()
         try:
             raw = adapter.fetch_since(days)
         except Exception as e:
-            db.log_crawl_run(cfg["id"], 0, f"error:{str(e)[:120]}")
+            dur = int((time.time() - t0) * 1000)
+            db.log_crawl_run(cfg["id"], 0, f"error:{str(e)[:120]}", total=0,
+                             duration_ms=dur, error=str(e)[:200])
             report[cfg["id"]] = {"fetched": 0, "status": f"error:{str(e)[:120]}"}
             continue
 
@@ -79,6 +84,15 @@ def run_crawl(days: int = 7, source_ids: list = None, with_comments: bool = True
             a.matched_keywords = kws
             a.sport_tags = matcher.sport_tags_for(a.text())
             a.entity_tags = matcher.entity_tags_for(a.text())
+            # 智能文本处理：摘要 / 情感 / 关键词
+            try:
+                info = tp.analyze(a.text())
+                a.summary = info["summary"] or a.summary
+                a.sentiment = info["sentiment"]["label"]
+                a.sentiment_score = info["sentiment"]["score"]
+                a.kw_tags = info["keywords"]
+            except Exception:
+                pass
             aid = db.upsert_article(a)
             a.id = aid
             kept.append(a)
@@ -93,7 +107,9 @@ def run_crawl(days: int = 7, source_ids: list = None, with_comments: bool = True
                             c.article_id = a.id
                         db.insert_comments(comments, a.id)
 
-        db.log_crawl_run(cfg["id"], len(kept), "ok")
+        dur = int((time.time() - t0) * 1000)
+        db.log_crawl_run(cfg["id"], len(kept), "ok", total=len(raw),
+                         duration_ms=dur, started_at=datetime.now().isoformat(timespec="seconds"))
         report[cfg["id"]] = {"fetched": len(kept), "status": "ok"}
     return report
 
@@ -110,10 +126,20 @@ def retag_all() -> int:
         cats, kws = matcher.match(text)
         sports = matcher.sport_tags_for(text)
         entities = matcher.entity_tags_for(text)
+        sent_label, sent_score, kwtags = "neu", 0.5, []
+        try:
+            info = tp.analyze(text)
+            sent_label = info["sentiment"]["label"]
+            sent_score = info["sentiment"]["score"]
+            kwtags = info["keywords"]
+        except Exception:
+            pass
         conn.execute(
-            "UPDATE articles SET category_tags=?, matched_keywords=?, sport_tags=?, entity_tags=? WHERE id=?",
+            "UPDATE articles SET category_tags=?, matched_keywords=?, sport_tags=?, entity_tags=?, "
+            "sentiment=?, sentiment_score=?, kw_tags=? WHERE id=?",
             (json.dumps(cats, ensure_ascii=False), json.dumps(kws, ensure_ascii=False),
-             json.dumps(sports, ensure_ascii=False), json.dumps(entities, ensure_ascii=False), r["id"]),
+             json.dumps(sports, ensure_ascii=False), json.dumps(entities, ensure_ascii=False),
+             sent_label, sent_score, json.dumps(kwtags, ensure_ascii=False), r["id"]),
         )
         n += 1
     conn.commit()

@@ -65,9 +65,13 @@ def init_db() -> None:
         CREATE TABLE IF NOT EXISTS crawl_runs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             started_at TEXT,
+            finished_at TEXT,
             source_id TEXT,
             fetched INTEGER DEFAULT 0,
-            status TEXT
+            status TEXT,
+            total INTEGER DEFAULT 0,
+            duration_ms INTEGER DEFAULT 0,
+            error TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_articles_src ON articles(source_id);
         CREATE INDEX IF NOT EXISTS idx_articles_pub ON articles(published_at);
@@ -81,6 +85,14 @@ def init_db() -> None:
         cur.execute("ALTER TABLE articles ADD COLUMN sport_tags TEXT;")
     if "entity_tags" not in cols:
         cur.execute("ALTER TABLE articles ADD COLUMN entity_tags TEXT;")
+    if "image_url" not in cols:
+        cur.execute("ALTER TABLE articles ADD COLUMN image_url TEXT DEFAULT '';")
+    if "sentiment" not in cols:
+        cur.execute("ALTER TABLE articles ADD COLUMN sentiment TEXT DEFAULT 'neu';")
+    if "sentiment_score" not in cols:
+        cur.execute("ALTER TABLE articles ADD COLUMN sentiment_score REAL DEFAULT 0.5;")
+    if "kw_tags" not in cols:
+        cur.execute("ALTER TABLE articles ADD COLUMN kw_tags TEXT;")
     # FTS5 全文索引（外部内容表，关联 articles.id）
     cur.execute(
         """
@@ -123,13 +135,17 @@ def upsert_article(a: Article) -> int:
         """
         INSERT INTO articles
           (source_id, source_name, title, url, author, published_at, summary, content,
-           category_tags, matched_keywords, sport_tags, entity_tags, lang, comment_adapter, has_comments, comment_count, fetched_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           category_tags, matched_keywords, sport_tags, entity_tags, image_url, sentiment,
+           sentiment_score, kw_tags, lang, comment_adapter, has_comments, comment_count, fetched_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(url) DO UPDATE SET
           source_name=excluded.source_name, title=excluded.title, author=excluded.author,
           published_at=excluded.published_at, summary=excluded.summary, content=excluded.content,
           category_tags=excluded.category_tags, matched_keywords=excluded.matched_keywords,
           sport_tags=excluded.sport_tags, entity_tags=excluded.entity_tags,
+          image_url=COALESCE(NULLIF(excluded.image_url,''), articles.image_url),
+          sentiment=excluded.sentiment, sentiment_score=excluded.sentiment_score,
+          kw_tags=excluded.kw_tags,
           comment_adapter=excluded.comment_adapter, comment_count=excluded.comment_count,
           fetched_at=excluded.fetched_at
         """,
@@ -139,6 +155,10 @@ def upsert_article(a: Article) -> int:
             json.dumps(a.matched_keywords, ensure_ascii=False),
             json.dumps(a.sport_tags, ensure_ascii=False),
             json.dumps(a.entity_tags, ensure_ascii=False),
+            a.image_url or "",
+            a.sentiment or "neu",
+            a.sentiment_score if a.sentiment_score is not None else 0.5,
+            json.dumps(a.kw_tags, ensure_ascii=False),
             a.lang, a.comment_adapter, 1 if a.comment_count > 0 else 0,
             a.comment_count, now,
         ),
@@ -173,6 +193,10 @@ def _row_to_article(row) -> Article:
         matched_keywords=json.loads(row["matched_keywords"] or "[]"),
         sport_tags=json.loads(row["sport_tags"] or "[]"),
         entity_tags=json.loads(row["entity_tags"] or "[]"),
+        image_url=row["image_url"] or "",
+        sentiment=row["sentiment"] or "neu",
+        sentiment_score=row["sentiment_score"] if row["sentiment_score"] is not None else 0.5,
+        kw_tags=json.loads(row["kw_tags"] or "[]"),
         lang=row["lang"] or "zh",
         comment_adapter=row["comment_adapter"],
         has_comments=bool(row["has_comments"]),
@@ -190,7 +214,7 @@ def article_exists(url: str) -> bool:
 
 def query_articles(days: int = 7, sources: list = None, categories: list = None,
                    sports: list = None, entities: list = None, text: str = "",
-                   only_comments: bool = False, limit: int = 500) -> list:
+                   only_comments: bool = False, sentiment: list = None, limit: int = 500) -> list:
     conn = get_conn()
     wheres, params = [], []
     cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
@@ -214,6 +238,10 @@ def query_articles(days: int = 7, sources: list = None, categories: list = None,
         params += entities
     if only_comments:
         wheres.append("comment_count > 0")
+    if sentiment:
+        ph = ",".join("?" * len(sentiment))
+        wheres.append(f"sentiment IN ({ph})")
+        params += sentiment
     if text:
         wheres.append("(title LIKE ? OR summary LIKE ? OR content LIKE ?)")
         like = f"%{text}%"
@@ -269,11 +297,99 @@ def get_last_crawl() -> dict:
     """返回最近一次抓取记录（用于总览展示定时任务是否在跑）。"""
     conn = get_conn()
     r = conn.execute(
-        "SELECT started_at, source_id, fetched, status FROM crawl_runs "
+        "SELECT started_at, source_id, fetched, status, duration_ms, total FROM crawl_runs "
         "ORDER BY id DESC LIMIT 1"
     ).fetchone()
     conn.close()
     return dict(r) if r else {}
+
+
+def get_crawl_stats(limit: int = 20) -> dict:
+    """抓取状态面板数据：最近若干次抓取 + 成功/失败汇总 + 平均耗时。"""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT started_at, finished_at, source_id, fetched, status, total, duration_ms, error "
+        "FROM crawl_runs ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+    runs = [dict(r) for r in rows]
+    ok = sum(1 for r in runs if r["status"] == "ok")
+    fail = sum(1 for r in runs if r["status"] and r["status"] != "ok")
+    durs = [r["duration_ms"] for r in runs if r["duration_ms"]]
+    avg_dur = int(sum(durs) / len(durs)) if durs else 0
+    conn.close()
+    return {"runs": runs, "ok": ok, "fail": fail, "avg_duration_ms": avg_dur}
+
+
+def get_daily_counts(days: int = 7) -> dict:
+    """近 N 天每天的文章数（按发布日期分组），用于热度折线图。"""
+    conn = get_conn()
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    rows = conn.execute(
+        "SELECT substr(published_at,1,10) AS d, COUNT(*) c FROM articles "
+        "WHERE published_at >= ? GROUP BY d ORDER BY d", (cutoff,)
+    ).fetchall()
+    conn.close()
+    return {r["d"]: r["c"] for r in rows}
+
+
+def get_daily_sport_counts(days: int = 7, sports: list = None) -> dict:
+    """近 N 天，各运动的日发布量（堆叠柱状图）。返回 {sport: {date: count}}。"""
+    conn = get_conn()
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    sports_clause = ""
+    params = [cutoff]
+    if sports:
+        ph = ",".join("?" * len(sports))
+        sports_clause = f"AND EXISTS(SELECT 1 FROM json_each(sport_tags) WHERE value IN ({ph}))"
+        params += sports
+    rows = conn.execute(
+        f"SELECT substr(published_at,1,10) AS d, value AS sport FROM articles, "
+        f"json_each(sport_tags) WHERE published_at >= ? {sports_clause}",
+        params,
+    ).fetchall()
+    conn.close()
+    out: dict = {}
+    for r in rows:
+        out.setdefault(r["sport"], {})[r["d"]] = out.get(r["sport"], {}).get(r["d"], 0) + 1
+    return out
+
+
+def get_keyword_freq(days: int = 7, sports: list = None, top_k: int = 40) -> dict:
+    """聚合文章智能关键词，返回 {词: 频次}（用于词云）。"""
+    conn = get_conn()
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    sports_clause = ""
+    params = [cutoff]
+    if sports:
+        ph = ",".join("?" * len(sports))
+        sports_clause = f"AND EXISTS(SELECT 1 FROM json_each(sport_tags) WHERE value IN ({ph}))"
+        params += sports
+    rows = conn.execute(
+        f"SELECT kw_tags FROM articles WHERE published_at >= ? {sports_clause}", params
+    ).fetchall()
+    conn.close()
+    from collections import Counter
+    freq = Counter()
+    for r in rows:
+        try:
+            tags = json.loads(r["kw_tags"] or "[]")
+        except Exception:
+            tags = []
+        for t in tags:
+            if t:
+                freq[t] += 1
+    return dict(freq.most_common(top_k))
+
+
+def get_sentiment_dist(days: int = 7) -> dict:
+    conn = get_conn()
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    rows = conn.execute(
+        "SELECT sentiment, COUNT(*) c FROM articles WHERE published_at >= ? GROUP BY sentiment",
+        (cutoff,),
+    ).fetchall()
+    conn.close()
+    return {r["sentiment"]: r["c"] for r in rows}
 
 
 # ---------------------------------------------------------------------------
@@ -376,11 +492,16 @@ def get_keyword_terms(user_only: bool = False) -> list:
 # ---------------------------------------------------------------------------
 # 抓取记录
 # ---------------------------------------------------------------------------
-def log_crawl_run(source_id: str, fetched: int, status: str) -> None:
+def log_crawl_run(source_id: str, fetched: int, status: str, total: int = 0,
+                  duration_ms: int = 0, error: str = "", started_at: str = None,
+                  finished_at: str = None) -> None:
     conn = get_conn()
     conn.execute(
-        "INSERT INTO crawl_runs(started_at, source_id, fetched, status) VALUES(?,?,?,?)",
-        (datetime.now().isoformat(timespec="seconds"), source_id, fetched, status),
+        "INSERT INTO crawl_runs(started_at, finished_at, source_id, fetched, status, total, duration_ms, error) "
+        "VALUES(?,?,?,?,?,?,?,?)",
+        (started_at or datetime.now().isoformat(timespec="seconds"),
+         finished_at or datetime.now().isoformat(timespec="seconds"),
+         source_id, fetched, status, total, duration_ms, error),
     )
     conn.commit()
     conn.close()

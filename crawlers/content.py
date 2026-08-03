@@ -81,13 +81,34 @@ def extract_content(soup: BeautifulSoup, max_len: int = 4000) -> str:
     return text[:max_len].strip()
 
 
+def extract_image(soup: BeautifulSoup, base_url: str = "") -> str:
+    """尽力提取封面图：优先 og:image，其次首张正文图。"""
+    m = soup.find("meta", property="og:image")
+    if m and m.get("content"):
+        return urljoin(base_url, m["content"].strip())
+    m = soup.find("meta", attrs={"name": "twitter:image"})
+    if m and m.get("content"):
+        return urljoin(base_url, m["content"].strip())
+    img = soup.find("article")
+    if img:
+        im = img.find("img", src=True)
+        if im and im.get("src"):
+            return urljoin(base_url, im["src"].strip())
+    im = soup.find("img", src=True)
+    if im and im.get("src") and "data:image" not in im["src"]:
+        return urljoin(base_url, im["src"].strip())
+    return ""
+
+
 def extract_from_html(html: str, base_url: str = "") -> dict:
     soup = BeautifulSoup(html, "lxml")
     title = extract_title(soup)
     pub = extract_published(soup, html)
     content = extract_content(soup)
+    image_url = extract_image(soup, base_url)
     author = ""
     am = soup.find("meta", attrs={"name": "author"})
     if am and am.get("content"):
         author = am["content"]
-    return {"title": title, "published_at": pub, "content": content, "author": author}
+    return {"title": title, "published_at": pub, "content": content,
+            "author": author, "image_url": image_url}

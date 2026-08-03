@@ -6,3 +6,8 @@ openpyxl==3.1.5
 PyYAML==6.0.3
 reportlab==5.0.0
 requests==2.34.2
+jieba==0.42.1
+snownlp==0.12.3
+streamlit-local-storage==0.0.7
+deep-translator==1.11.4
+pillow==11.3.0

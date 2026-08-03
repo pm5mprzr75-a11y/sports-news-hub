@@ -64,6 +64,7 @@ class SourceAdapter:
             published_at=raw.get("published_at"),
             summary=raw.get("summary", "").strip(),
             content=raw.get("content", "").strip(),
+            image_url=raw.get("image_url", "").strip(),
             lang=self.cfg.get("lang", "zh"),
             comment_adapter=self.cfg.get("comment_adapter"),
         )
